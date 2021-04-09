@@ -5,9 +5,14 @@ import SurveyUserRepository from '../repositories/SurveyUserRepository';
 import UsersRepository from '../repositories/UsersRepository';
 import SendMail from '../services/SendMail';
 import { resolve } from "path";
+import AppError from '../errors/AppError';
 
 export default {
 
+  /**
+   * Envia um email ao usuário 
+   * @param Request - passando um email e id da pesquisa
+   * */
   async execute(req: Request, res: Response){
     const {
       email, survey_id
@@ -20,41 +25,39 @@ export default {
     const user = await usersRepository.findOne({email});
 
     if (!user){
-      return res.status(400).json({
-        message: 'User does not exist'
-      });
+      throw new AppError("User does not exist");
     }
 
     const survey = await surveyRepository.findOne({id: survey_id});
 
     if(!survey){
-      return res.status(400).json({
-        message: 'Surveys does not exist'
-      });
+      throw new AppError("Survey does not exist");
     }
 
     const surveyUserAlreadyExists = await surveyUserRepository
       .findOne({
         where:[
-          {user_id: user.id},
-          {value: null}
+          {user_id: user.id,
+          value: null}
         ],
         relations:["user", "survey"]
       });
-
-    const variables = {
-      name: user.name,
-      title: survey.title,
-      description: survey.description,
-      user_id: user.id,
-      link: `${process.env.SERVER_URL}answers`
-    }
 
     const path = resolve(
       __dirname, "..","views","emails","npsMail.hbs"
     );
 
+    const variables = {
+      name: user.name,
+      title: survey.title,
+      description: survey.description,
+      id: "",
+      link: `${process.env.SERVER_URL}answers`
+    }
+
     if(surveyUserAlreadyExists){
+      variables.id = surveyUserAlreadyExists.id
+
       await SendMail.execute(
         email, 
         survey.title,
@@ -72,7 +75,7 @@ export default {
 
     await surveyUserRepository.save(surveyUser);
 
-    
+    variables.id = surveyUser.id;
 
     await SendMail.execute(
       email, 

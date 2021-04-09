@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { getConnection } from 'typeorm';
 import app from '../app';
 
 import createConnection from '../database';
@@ -11,7 +12,8 @@ describe("Crete user", () => {
   });
 
   afterAll(async () => {
-    const connection = await createConnection();
+    const connection = await getConnection();
+    await connection.dropDatabase();
     await connection.close();
   });
 
